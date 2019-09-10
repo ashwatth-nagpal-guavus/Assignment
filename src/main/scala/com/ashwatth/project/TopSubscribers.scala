@@ -1,57 +1,77 @@
 package com.ashwatth.project
-import org.apache.spark.sql.SparkSession
+
 import org.apache.spark._
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions.{row_number}
+import org.apache.spark.sql.expressions.Window
 
 object TopSubscribers {
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder
       .master("local")
       .appName("TopSubscribers")
+      .enableHiveSupport()
       .getOrCreate()
 
-    val smallSet = spark.read
-      .option("inferSchema", true)
-      .option("header", true)
-      .csv("../../ashwatth/smallSet.csv")
+    import spark.implicits._
 
-    val dataPerIPAddress = smallSet
-      .groupBy("radius-user-name")
+    val smallSet = spark.read
+      .orc("../../ashwatth/minhour/")
+
+    val dataPerUserPerHour = smallSet
+      .groupBy("Hour", "radiusUserName")
       .agg(
-        sum("transaction-downlink-bytes").as("total-download-bytes"),
-        sum("transaction-uplink-bytes").as("total-upload-bytes")
+        sum("transactionDownlinkBytes").as("total-download-bytes"),
+        sum("transactionUplinkBytes")
+          .as("total-upload-bytes"),
+        (
+          sum("transactionDownlinkBytes") + sum("transactionUplinkBytes")
+        ).as("tonnage")
       )
 
-    val topSubscribersByDownLoadByte =
-      dataPerIPAddress
-        .select("radius-user-name", "total-download-bytes")
-        .orderBy(desc("total-download-bytes"))
+    val downloadWindow =
+      Window.partitionBy("Hour").orderBy(desc("total-download-bytes"))
 
-    val topSubscribersByUpLoadByte =
-      dataPerIPAddress
-        .select("radius-user-name", "total-upload-bytes")
-        .orderBy(desc("total-upload-bytes"))
+    val uploadWindow =
+      Window.partitionBy("Hour").orderBy(desc("total-upload-bytes"))
+
+    val tonnageWindow = Window.partitionBy("Hour").orderBy(desc("tonnage"))
+
+    val topSubscribersPerHourByDownLoadByte =
+      dataPerUserPerHour
+        .select("Hour", "radiusUserName", "total-download-bytes")
+        .withColumn("rn", row_number.over(downloadWindow))
+        .where($"rn" <= 10)
+        .drop("rn")
+
+    val top10SubscribersPerHourByUpLoadByte =
+      dataPerUserPerHour
+        .select("Hour", "radiusUserName", "total-upload-bytes")
+        .withColumn("rn", row_number.over(uploadWindow))
+        .where($"rn" <= 10)
+        .drop("rn")
+
+    val top10SubscribersPerHourByTonnage =
+      dataPerUserPerHour
+        .select("Hour", "radiusUserName", "tonnage")
+        .withColumn("rn", row_number.over(tonnageWindow))
+        .where($"rn" <= 10)
+        .drop("rn")
 
     println("Top 10 Subscriber as per download bytes ")
 
-    topSubscribersByDownLoadByte.show(10)
+    topSubscribersPerHourByDownLoadByte.show(30)
 
     println("Top 10 Subscriber as per upload bytes ")
 
-    topSubscribersByUpLoadByte.show(10)
+    top10SubscribersPerHourByUpLoadByte.show(30)
 
     println("Top 10 Subscriber as per upload + download bytes ")
 
-    dataPerIPAddress
-      .select(
-        dataPerIPAddress("radius-user-name"),
-        (dataPerIPAddress("total-download-bytes") + dataPerIPAddress(
-          "total-upload-bytes"
-        )).as("sum(up+down)")
-      )
-      .orderBy(desc("sum(up+down)"))
-      .show(10)
+    top10SubscribersPerHourByTonnage.show(30)
+    
 
   }
 
