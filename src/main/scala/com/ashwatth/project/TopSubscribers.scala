@@ -44,34 +44,28 @@ object TopSubscribers {
         .select("Hour", "radiusUserName", "total-download-bytes")
         .withColumn("rn", row_number.over(downloadWindow))
         .where($"rn" <= 10)
-        .drop("rn")
+        .withColumnRenamed("radiusUserName", "byDownload")
 
     val top10SubscribersPerHourByUpLoadByte =
       dataPerUserPerHour
         .select("Hour", "radiusUserName", "total-upload-bytes")
         .withColumn("rn", row_number.over(uploadWindow))
         .where($"rn" <= 10)
-        .drop("rn")
+        .withColumnRenamed("radiusUserName", "byUpload")
 
     val top10SubscribersPerHourByTonnage =
       dataPerUserPerHour
         .select("Hour", "radiusUserName", "tonnage")
         .withColumn("rn", row_number.over(tonnageWindow))
         .where($"rn" <= 10)
-        .drop("rn")
+        .withColumnRenamed("radiusUserName", "byTonnage")
 
-    println("Top 10 Subscriber as per download bytes ")
-
-    topSubscribersPerHourByDownLoadByte.show(30)
-
-    println("Top 10 Subscriber as per upload bytes ")
-
-    top10SubscribersPerHourByUpLoadByte.show(30)
-
-    println("Top 10 Subscriber as per upload + download bytes ")
-
-    top10SubscribersPerHourByTonnage.show(30)
-    
+    topSubscribersPerHourByDownLoadByte
+      .join(top10SubscribersPerHourByUpLoadByte, Seq("Hour", "rn"))
+      .join(top10SubscribersPerHourByTonnage, Seq("Hour", "rn"))
+      .select("Hour", "rn", "byDownload", "byUpload", "byTonnage")
+      .orderBy(asc("Hour"), asc("rn"))
+      .show(30, false)
 
   }
 
