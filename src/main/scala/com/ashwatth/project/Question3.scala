@@ -2,7 +2,7 @@ package com.ashwatth.project
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
-object PerUrlTonnage {
+object Question3 {
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder
       .master("local")
@@ -52,12 +52,13 @@ object PerUrlTonnage {
             .as("Tonnage"),
           count("domainName").as("Hits")
         )
-        .orderBy(desc("Tonnage"))
-    tonnageAndHitsPerMinute.show(20, false)
+        .orderBy(asc("min"))
+    tonnageAndHitsPerMinute.limit(20)
 
   }
 
   def checkUrl(str: String): Boolean = {
     str.split("/").size >= 3
   }
+
 }

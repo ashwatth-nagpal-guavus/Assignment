@@ -7,7 +7,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql.functions.{row_number}
 import org.apache.spark.sql.expressions.Window
 
-object TopSubscribers {
+object Question1 {
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder
       .master("local")
@@ -60,12 +60,13 @@ object TopSubscribers {
         .where($"rn" <= 10)
         .withColumnRenamed("radiusUserName", "byTonnage")
 
-    topSubscribersPerHourByDownLoadByte
+    val top10Subscribers=topSubscribersPerHourByDownLoadByte
       .join(top10SubscribersPerHourByUpLoadByte, Seq("Hour", "rn"))
       .join(top10SubscribersPerHourByTonnage, Seq("Hour", "rn"))
       .select("Hour", "rn", "byDownload", "byUpload", "byTonnage")
       .orderBy(asc("Hour"), asc("rn"))
-      .show(30, false)
+
+    top10Subscribers.write.partitionBy("Hour").orc("../../ashwatth/top10Subscribers")
 
   }
 
