@@ -5,44 +5,47 @@ import org.apache.spark.sql.functions._
 
 object Question5 {
   def main(args: Array[String]): Unit = {
-    val spark = SparkSession.builder
-      .master("local")
-      .appName("TopSubscribers")
-      .enableHiveSupport()
-      .getOrCreate()
-    import spark.implicits._
+    try {
+      val spark = SparkSession.builder
+        .appName("TopSubscribers")
+        .enableHiveSupport()
+        .getOrCreate()
+      import spark.implicits._
 
-    val ggsnXMLDF = spark.read
-      .option("rowTag", "ggsn")
-      .format("xml")
-      .load("../../ashwatth/EDR_Dataset/ggsn.xml")
+      val ggsnXMLDF = spark.read
+        .option("rowTag", "ggsn")
+        .format("xml")
+        .load("/tmp/ashwatth/ggsn.xml")
 
-    val ggsnFormattedDF = ggsnXMLDF
-      .select($"_name", explode($"rule"))
-      .map(x => (x.getString(0), x.getStruct(1).getStruct(0).getString(2)))
-      .toDF("name", "ggsnIp")
+      val ggsnFormattedDF = ggsnXMLDF
+        .select($"_name", explode($"rule"))
+        .select($"_name", $"col.condition._value")
+        .toDF("name", "ggsnIp")
 
-    val smallSet = spark.read
-      .orc("../../ashwatth/minhour/")
+      val edrHttpLogsDF = spark.table("edr_http_logs")
 
-    val joinedDF = smallSet
-      .select(
-        "ggsnIp",
-        "transactionUplinkBytes",
-        "transactionDownlinkBytes",
-        "Hour"
-      )
-      .filter($"ggsnIp".isNotNull)
-      .join(ggsnFormattedDF, Seq("ggsnIp"))
+      val joinedDF = edrHttpLogsDF
+        .select(
+          "ggsnIp",
+          "transactionUplinkBytes",
+          "transactionDownlinkBytes",
+          "Hour"
+        )
+        .filter($"ggsnIp".isNotNull)
+        .join(ggsnFormattedDF, Seq("ggsnIp"))
 
-    joinedDF
-      .groupBy("Hour", "name")
-      .agg(
-        (sum("transactionUplinkBytes") + sum("transactionDownlinkBytes"))
-          .as("Tonnage")
-      )
-      .write
-      .partitionBy("Hour")
-      .orc("../../ashwatth/TonnagePerGgsnName")
+      joinedDF
+        .groupBy("Hour", "name")
+        .agg(
+          (sum("transactionUplinkBytes") + sum("transactionDownlinkBytes"))
+            .as("Tonnage")
+        )
+        .write
+        .partitionBy("Hour")
+        .format("orc")
+        .saveAsTable("ashwatth.question5_ashwatth")
+    } catch {
+      case ex: Exception => println(ex)
+    }
   }
 }
