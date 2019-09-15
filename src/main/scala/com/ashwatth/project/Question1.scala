@@ -67,7 +67,7 @@ object Question1 {
       top10Subscribers.write
         .partitionBy("Hour")
         .format("orc")
-        .saveAsTable("ashwatth.question1_ashwatth")
+        .saveAsTable("ashwatth.question1")
 
     } catch {
       case ex: Exception => println(ex)

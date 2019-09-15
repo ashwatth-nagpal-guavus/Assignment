@@ -20,30 +20,30 @@ object Question5 {
       val ggsnFormattedDF = ggsnXMLDF
         .select($"_name", explode($"rule"))
         .select($"_name", $"col.condition._value")
-        .toDF("name", "ggsnIp")
+        .toDF("name", "ggsnip")
 
-      val edrHttpLogsDF = spark.table("edr_http_logs")
+      val edrHttpLogsDF = spark.table("ashwatth.edr_http_logs")
 
       val joinedDF = edrHttpLogsDF
         .select(
-          "ggsnIp",
-          "transactionUplinkBytes",
-          "transactionDownlinkBytes",
-          "Hour"
+          "ggsnip",
+          "transactionuplinkbytes",
+          "transactiondownlinkbytes",
+          "hour"
         )
-        .filter($"ggsnIp".isNotNull)
-        .join(ggsnFormattedDF, Seq("ggsnIp"))
+        .filter($"ggsnip".isNotNull)
+        .join(ggsnFormattedDF, Seq("ggsnip"))
 
       joinedDF
-        .groupBy("Hour", "name")
+        .groupBy("hour", "name")
         .agg(
-          (sum("transactionUplinkBytes") + sum("transactionDownlinkBytes"))
+          (sum("transactionuplinkbytes") + sum("transactiondownlinkbytes"))
             .as("Tonnage")
         )
         .write
-        .partitionBy("Hour")
+        .partitionBy("hour")
         .format("orc")
-        .saveAsTable("ashwatth.question5_ashwatth")
+        .saveAsTable("ashwatth.question5")
     } catch {
       case ex: Exception => println(ex)
     }

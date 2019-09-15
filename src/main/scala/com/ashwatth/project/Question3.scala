@@ -19,48 +19,48 @@ object Question3 {
 
       val validUrl =
         edrHttpLogsDF
-          .filter($"httpUrl".isNotNull)
+          .filter($"httpurl".isNotNull && $"httpreplycode".rlike("2[0-9][0-9]"))
           .filter(eachRow => checkUrl(eachRow.getString(11)))
 
       val dfWithDomainName = validUrl
         .select(
-          $"Hour",
-          $"transactionUplinkBytes",
-          $"transactionDownlinkBytes",
-          $"httpUrl",
+          $"hour",
+          $"transactionuplinkbytes",
+          $"transactiondownlinkbytes",
+          $"httpurl",
           $"min"
         )
         .map(eachRow => {
           val http_url = eachRow.getString(3).split("/")
           (
             eachRow.getInt(0),
-            eachRow.getInt(1),
+            eachRow.getLong(1),
             eachRow.getLong(2),
             eachRow.getInt(4),
             http_url(2)
           )
         })
         .toDF(
-          "Hour",
-          "transactionUplinkBytes",
-          "transactionDownlinkBytes",
+          "hour",
+          "transactionuplinkbytes",
+          "transactiondownlinkbytes",
           "min",
-          "domainName"
+          "domainname"
         )
 
       val tonnageAndHitsPerMinute =
         dfWithDomainName
-          .groupBy("Hour", "min", "domainName")
+          .groupBy("hour", "min", "domainname")
           .agg(
-            (sum("transactionDownlinkBytes") + sum("transactionUplinkBytes"))
+            (sum("transactiondownlinkbytes") + sum("transactionuplinkbytes"))
               .as("Tonnage"),
-            count("domainName").as("Hits")
+            count("domainname").as("Hits")
           )
-          .orderBy(asc("Hour"), asc("min"))
+          .orderBy(asc("hour"), asc("min"))
       tonnageAndHitsPerMinute.write
-        .partitionBy("Hour", "min")
+        .partitionBy("hour", "min")
         .format("orc")
-        .saveAsTable("ashwatth.question3_ashwatth")
+        .saveAsTable("ashwatth.question3")
     } catch {
       case ex: Exception => println(ex)
     }
