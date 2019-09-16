@@ -9,13 +9,14 @@ import org.apache.spark.sql.expressions.Window
 
 object Question1 {
   def main(args: Array[String]): Unit = {
-    val spark = SparkSession.builder
-      .appName("TopSubscribers")
-      .enableHiveSupport()
-      .getOrCreate()
-
-    import spark.implicits._
     try {
+      val spark = SparkSession.builder
+        .appName("TopSubscribers")
+        .enableHiveSupport()
+        .getOrCreate()
+
+      import spark.implicits._
+
       val edrHttpLogsDF = spark.table("ashwatth.edr_http_logs")
 
       val dataPerUserPerHour = edrHttpLogsDF
@@ -28,7 +29,7 @@ object Question1 {
             sum("transactionDownlinkBytes") + sum("transactionUplinkBytes")
           ).as("tonnage")
         )
-
+      dataPerUserPerHour.persist()
       val downloadWindow =
         Window.partitionBy("Hour").orderBy(desc("total-download-bytes"))
 

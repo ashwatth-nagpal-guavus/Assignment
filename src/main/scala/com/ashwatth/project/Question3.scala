@@ -15,7 +15,6 @@ object Question3 {
       import spark.implicits._
 
       val edrHttpLogsDF = spark.table("ashwatth.edr_http_logs")
-      //      .orc("../../ashwatth/minhour/")
 
       val validUrl =
         edrHttpLogsDF
